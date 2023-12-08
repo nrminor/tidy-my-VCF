@@ -11,6 +11,7 @@ if ("renv" %in% rownames(installed.packages())) {
 suppressPackageStartupMessages(c(
   library(devtools),
   library(dplyr),
+  library(tidyr),
   library(stringr),
   library(readr),
   library(assertr),
@@ -18,6 +19,8 @@ suppressPackageStartupMessages(c(
   library(vcfR),
   library(renv)
 ))
+
+# renv::snapshot()
 
 # load configurations
 source("./config.R")
@@ -42,7 +45,9 @@ optional_filtering <- compiler::cmpfun(
 main <- compiler::cmpfun(function(){
   
   # make sure provided VCF path actually exists
-  stopifnot(vcf_path %in% list.files())
+  stopifnot(stopifnot(file.exists(vcf_path)))
+  
+  # get the file basename
   vcf_name <- vcf_path %>%
     basename %>%
     str_remove(".vcf") %>%
@@ -66,13 +71,22 @@ main <- compiler::cmpfun(function(){
     )
   }
   
-  # write the genotypes to an arrow IPC format
-  tidy_vcf$dat %>%
-    arrow_table() %>%
-    write_ipc_file(
-      paste(vcf_name, ".tidy.variants.arrow", sep = ""),
-      compression = "zstd"
-    )
+  if (whether_to_write_arrow == TRUE){
+    
+    # write the genotypes to an arrow IPC format
+    tidy_vcf$dat %>%
+      arrow_table() %>%
+      write_ipc_file(
+        paste(vcf_name, ".tidy.variants.arrow", sep = ""),
+        compression = "zstd"
+      )
+  
+  } else {
+    
+    tidy_vcf$dat %>%
+      write_tsv(paste(vcf_name, ".tidy.variants.tsv", sep = ""), delim = "\t")
+    
+  }
   
 })
 main()
